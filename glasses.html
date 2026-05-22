@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=600, height=600, initial-scale=1.0, user-scalable=no">
+<title>PhotoBeam</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  background: #000;
+  font-family: 'SF Pro Display', -apple-system, sans-serif;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Screens ── */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.screen.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── Ready screen ── */
+#screen-ready {
+  gap: 24px;
+}
+
+.photo-frame {
+  width: 300px;
+  height: 300px;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.2);
+  position: relative;
+}
+
+.photo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255,255,255,0.6);
+  font-size: 18px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
+
+.hint-arrow {
+  display: flex;
+  gap: 4px;
+}
+
+.arrow-key {
+  width: 32px;
+  height: 32px;
+  border: 1.5px solid rgba(255,255,255,0.4);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(255,255,255,0.4); }
+  50%       { border-color: rgba(255,255,255,0.9); box-shadow: 0 0 12px rgba(255,255,255,0.3); }
+}
+
+/* ── Beaming screen ── */
+#screen-beaming {
+  gap: 32px;
+}
+
+.beam-photo {
+  width: 280px;
+  height: 280px;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.3);
+  animation: beam-slide 0.8s cubic-bezier(0.2, 0, 0.1, 1) forwards;
+}
+
+.beam-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@keyframes beam-slide {
+  0%   { transform: translateX(0) scale(1); opacity: 1; }
+  60%  { transform: translateX(80px) scale(0.9); opacity: 0.8; }
+  100% { transform: translateX(700px) scale(0.6); opacity: 0; }
+}
+
+.beam-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 300;
+  color: rgba(255,255,255,0.8);
+}
+
+.beam-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00ff88;
+  animation: dot-pulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes dot-pulse {
+  from { transform: scale(1); opacity: 1; }
+  to   { transform: scale(1.5); opacity: 0.5; }
+}
+
+/* ── Sent screen ── */
+#screen-sent {
+  gap: 20px;
+}
+
+.checkmark-ring {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid #00ff88;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ring-appear 0.4s ease-out;
+  box-shadow: 0 0 30px rgba(0, 255, 136, 0.4);
+}
+
+@keyframes ring-appear {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.checkmark {
+  font-size: 40px;
+  animation: check-appear 0.3s ease-out 0.2s both;
+}
+
+@keyframes check-appear {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
+}
+
+.sent-label {
+  font-size: 22px;
+  font-weight: 300;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: 0.04em;
+}
+
+.sent-sublabel {
+  font-size: 16px;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.02em;
+}
+
+/* ── Error screen ── */
+#screen-error {
+  gap: 16px;
+  padding: 40px;
+  text-align: center;
+}
+
+.error-icon { font-size: 40px; }
+.error-msg  { font-size: 16px; color: rgba(255,100,100,0.9); }
+</style>
+</head>
+<body>
+
+<!-- Screen 1: Ready — show photo, prompt to swipe right -->
+<div class="screen active" id="screen-ready">
+  <div class="photo-frame">
+    <img id="photo-img" src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80" alt="Photo to beam">
+  </div>
+  <div class="hint">
+    <div class="hint-arrow">
+      <div class="arrow-key">→</div>
+    </div>
+    <span>swipe right to beam</span>
+  </div>
+</div>
+
+<!-- Screen 2: Beaming — photo flies out to the right -->
+<div class="screen" id="screen-beaming">
+  <div class="beam-photo">
+    <img id="beam-img" src="" alt="">
+  </div>
+  <div class="beam-status">
+    <div class="beam-dot"></div>
+    <span>Sending to browser…</span>
+  </div>
+</div>
+
+<!-- Screen 3: Sent confirmation -->
+<div class="screen" id="screen-sent">
+  <div class="checkmark-ring">
+    <span class="checkmark">✓</span>
+  </div>
+  <div class="sent-label">Arrived in browser</div>
+  <div class="sent-sublabel">swipe right for another</div>
+</div>
+
+<!-- Screen 4: Error -->
+<div class="screen" id="screen-error">
+  <div class="error-icon">⚠</div>
+  <div class="error-msg" id="error-msg">Could not connect to relay</div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────
+// The relay WebSocket URL — update this to your deployed relay URL
+// For local testing: ws://YOUR_MAC_IP:3000/ws
+// For production:    wss://your-relay.railway.app/ws
+const RELAY_WS  = 'wss://your-relay-url.railway.app/ws';
+const RELAY_HTTP = 'https://your-relay-url.railway.app';
+
+// Sample image to beam — replace with any HTTPS image URL you want
+const SAMPLE_IMAGE_URL = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80';
+
+// ── State ─────────────────────────────────────────────────────────────────
+let currentScreen = 'ready';
+let ws = null;
+let wsReady = false;
+let beaming = false;
+
+// ── Screens ───────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  currentScreen = id;
+}
+
+// ── WebSocket relay ───────────────────────────────────────────────────────
+function connectRelay() {
+  ws = new WebSocket(RELAY_WS);
+  ws.onopen  = () => { wsReady = true;  console.log('[PhotoBeam] Relay connected'); };
+  ws.onclose = () => { wsReady = false; setTimeout(connectRelay, 3000); };
+  ws.onerror = () => { wsReady = false; };
+}
+connectRelay();
+
+// ── Beam logic ────────────────────────────────────────────────────────────
+function beam() {
+  if (beaming) return;
+  beaming = true;
+
+  // Mirror same image onto beaming screen
+  document.getElementById('beam-img').src = SAMPLE_IMAGE_URL;
+  showScreen('beaming');
+
+  // Notify relay → browser receives it
+  const payload = JSON.stringify({
+    type: 'beam',
+    imageURL: SAMPLE_IMAGE_URL,
+    dominantColor: '#2a6b8a'  // approximate dominant colour of the sample image
+  });
+
+  if (wsReady && ws.readyState === WebSocket.OPEN) {
+    ws.send(payload);
+    console.log('[PhotoBeam] Beamed via WebSocket');
+  } else {
+    // Fallback: HTTP POST to relay
+    fetch(RELAY_HTTP + '/beam', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    }).catch(e => console.error('[PhotoBeam] Beam HTTP failed:', e));
+  }
+
+  // Show sent screen after animation completes
+  setTimeout(() => {
+    showScreen('sent');
+    // Auto-reset after 3 seconds
+    setTimeout(() => {
+      beaming = false;
+      showScreen('ready');
+    }, 3000);
+  }, 900);
+}
+
+// ── Input: arrow keys (Neural Band + captouch → ArrowRight) ──────────────
+document.addEventListener('keydown', function(e) {
+  console.log('[PhotoBeam] Key:', e.key);
+  switch (e.key) {
+    case 'ArrowRight':
+      if (currentScreen === 'ready') beam();
+      else if (currentScreen === 'sent') { beaming = false; showScreen('ready'); }
+      e.preventDefault();
+      break;
+    case 'ArrowLeft':
+      if (currentScreen === 'sent') { beaming = false; showScreen('ready'); }
+      e.preventDefault();
+      break;
+    case 'Enter':
+      if (currentScreen === 'ready') beam();
+      e.preventDefault();
+      break;
+  }
+});
+</script>
+</body>
+</html>
